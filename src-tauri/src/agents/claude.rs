@@ -147,14 +147,15 @@ impl ClaudeCodeAdapter {
                         }
                     };
 
-                    // Skip subagent hooks (but never skip PermissionRequest —
-                    // it must be processed even if agent_id is set, because
-                    // newer Claude Code versions include agent_id on all events)
-                    if payload.agent_id.is_some()
+                    // Skip subagent hooks. Newer Claude Code sets agent_id on
+                    // ALL events (including main agent), so we use agent_type
+                    // to distinguish true subagent events. agent_type is only
+                    // set for subagents, not the main agent.
+                    let is_subagent = payload.agent_type.is_some();
+                    if is_subagent
                         && !matches!(
                             payload.hook_event_name.as_deref(),
                             Some("SubagentStart") | Some("SubagentStop")
-                                | Some("PermissionRequest")
                         )
                     {
                         continue;
