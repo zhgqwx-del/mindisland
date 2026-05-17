@@ -20,13 +20,15 @@
 - [x] Process liveness monitor
 - [x] UI aligned with Open Vibe Island design language
 
-## Phase 2: OpenCode + Polish
+## Phase 2: OpenCode Integration
 
-- [ ] OpenCode SSE adapter (re-enable `agents/opencode.rs`)
-- [ ] Claude Code fork support (Qoder/Qwen/Factory — same hook format)
-- [ ] AskUserQuestion tool support (structured question UI)
-- [ ] Subagent tracking (show active subagent list)
-- [ ] Settings panel (sound selection, notification preferences)
+- [ ] OpenCode JS plugin (`hooks/mindisland-opencode-plugin.js`)
+- [ ] Modify socket adapter to detect OpenCode events (`_source` / session_id prefix)
+- [ ] OpenCode plugin auto-installer (copy to `~/.config/opencode/plugins/`)
+- [ ] Permission reply: plugin POSTs to `/permission/{id}/reply`
+- [ ] Question reply: plugin POSTs to `/question/{id}/reply`
+- [ ] Rewrite `opencode.rs` as plugin installer (not SSE adapter)
+- [ ] Test with live OpenCode session
 
 ## Phase 3: UltraWork + Multi-Agent
 
