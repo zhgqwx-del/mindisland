@@ -29,7 +29,7 @@ Right-click tray icon → Quit MindIsland.
 
 - `src-tauri/src/agents/claude.rs` — Socket adapter (shared by Claude Code + OpenCode, detects source via `_source` field)
 - `src-tauri/src/agents/claude_discovery.rs` — JSONL transcript scanner
-- `src-tauri/src/agents/opencode.rs` — OpenCode plugin installer (copies JS to `~/.config/opencode/plugins/`)
+- `src-tauri/src/agents/opencode.rs` — OpenCode plugin installer (writes embedded content to `~/.config/opencode/plugins/`)
 - `src-tauri/src/session.rs` — SessionManager (state, events, tray updates, process monitor)
 - `src-tauri/src/tray.rs` — System tray, panel window, right-click menu
 - `src-tauri/src/event.rs` — AgentEvent + AgentSession models
@@ -38,8 +38,8 @@ Right-click tray icon → Quit MindIsland.
 - `src/App.tsx` — Main app, header, auto-resize
 - `src/components/SessionRow.tsx` — Session row with permission buttons + assistant message
 - `src/components/SessionList.tsx` — Session list with visibility filtering
-- `hooks/mindisland-claude-hook.sh` — Claude Code hook script (bash + python)
-- `hooks/mindisland-opencode-plugin.js` — OpenCode plugin (event forwarding, permission/question reply)
+- `hooks/mindisland-claude-hook.sh` — Claude Code hook script (embedded in binary via `include_str!`)
+- `hooks/mindisland-opencode-plugin.js` — OpenCode plugin (embedded in binary via `include_str!`)
 
 ## Conventions
 
