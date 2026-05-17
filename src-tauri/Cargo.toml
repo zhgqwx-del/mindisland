@@ -1,0 +1,23 @@
+[package]
+name = "mindisland"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "macos-private-api", "image-png"] }
+tauri-plugin-shell = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+reqwest = { version = "0.12", features = ["stream", "json"] }
+eventsource-client = "0.13"
+futures = "0.3"
+base64 = "0.22"
+dirs = "6"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[lib]
+name = "mindisland_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
