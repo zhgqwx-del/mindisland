@@ -14,6 +14,7 @@ export interface AgentSession {
   currentTool?: string;
   initialPrompt?: string;
   lastUserPrompt?: string;
+  lastAssistantMessage?: string;
   pendingPermission?: {
     id: string;
     title: string;

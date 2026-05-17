@@ -149,17 +149,22 @@ export function SessionRow({ session }: { session: AgentSession }) {
             </p>
           )}
 
-          {/* Line 3: Activity / response line */}
-          {session.summary && session.summary !== "Session started" && (
+          {/* Line 3: Activity — tool use or current action */}
+          {session.currentTool && isActive && (
+            <p className="text-[11px] truncate leading-tight mt-0.5 text-[#f1ead9]/35">
+              <span className="text-[#6ea7ff]/40 font-mono text-[10px] mr-1">
+                {session.currentTool}
+              </span>
+              {!session.summary.startsWith("Prompt: ") && session.summary}
+            </p>
+          )}
+
+          {/* Line 4: Assistant's last response */}
+          {session.lastAssistantMessage && (
             <p className={`text-[11px] truncate leading-tight mt-0.5 ${
-              isActive ? "text-[#f1ead9]/35" : "text-[#f1ead9]/18"
+              isActive ? "text-[#f1ead9]/30" : "text-[#f1ead9]/20"
             }`}>
-              {session.currentTool && isActive && (
-                <span className="text-[#6ea7ff]/40 font-mono text-[10px] mr-1">
-                  {session.currentTool}
-                </span>
-              )}
-              {session.summary.startsWith("Prompt: ") ? "" : session.summary}
+              {session.lastAssistantMessage}
             </p>
           )}
 

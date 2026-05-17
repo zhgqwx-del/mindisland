@@ -27,6 +27,7 @@ pub struct AgentSession {
     pub current_tool: Option<String>,
     pub initial_prompt: Option<String>,
     pub last_user_prompt: Option<String>,
+    pub last_assistant_message: Option<String>,
     pub pending_permission: Option<PermissionRequest>,
 }
 

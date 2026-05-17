@@ -208,6 +208,7 @@ impl SessionManager {
                                     current_tool: None,
                                     initial_prompt: None,
                                     last_user_prompt: None,
+                                    last_assistant_message: None,
                                     pending_permission: None,
                                 },
                             );
@@ -241,6 +242,17 @@ impl SessionManager {
                                     session.initial_prompt = Some(prompt.to_string());
                                 }
                             }
+                            // Capture assistant messages from Notification events
+                            // (tool_name is None for non-tool activity)
+                            if tool_name.is_none()
+                                && !summary.starts_with("Prompt: ")
+                                && !summary.starts_with("Compacting")
+                                && !summary.starts_with("Started subagent")
+                                && !summary.starts_with("Subagent")
+                                && !summary.starts_with("Session started")
+                            {
+                                session.last_assistant_message = Some(summary.clone());
+                            }
                             session.summary = summary.clone();
                         }
                     }
@@ -271,6 +283,8 @@ impl SessionManager {
                     } => {
                         if let Some(session) = map.get_mut(session_id) {
                             session.phase = SessionPhase::Completed;
+                            // Preserve assistant message for display
+                            session.last_assistant_message = Some(summary.clone());
                             session.summary = summary.clone();
                             session.current_tool = None;
                             session.pending_permission = None;
