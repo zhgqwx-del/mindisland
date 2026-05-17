@@ -1,7 +1,6 @@
 import { useEffect, useCallback, useState, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useSessionStore } from "./stores/sessions";
 import type { AgentSession } from "./stores/sessions";
 import { SessionList } from "./components/SessionList";
@@ -24,7 +23,8 @@ function App() {
   useEffect(() => {
     // If attention just cleared (was true, now false) and no active sessions, auto-hide
     if (prevAttentionRef.current && !hasAttention && !hasActive) {
-      const timer = setTimeout(() => {
+      const timer = setTimeout(async () => {
+        const { getCurrentWindow } = await import("@tauri-apps/api/window");
         getCurrentWindow().hide();
       }, 8000);
       return () => clearTimeout(timer);
@@ -47,8 +47,28 @@ function App() {
     };
   }, [setSessions, refresh]);
 
+  // Resize window to fit session count
+  const visibleCount = sessions.filter(
+    (s) =>
+      s.phase === "running" ||
+      s.phase === "waiting-for-approval" ||
+      s.phase === "waiting-for-answer" ||
+      (s.phase === "completed" && Date.now() - s.updatedAt < 120000)
+  ).length;
+
+  useEffect(() => {
+    const headerHeight = 36;
+    const emptyHeight = 120;
+    const rowHeight = 90;
+    const padding = 16;
+    const height = visibleCount === 0
+      ? headerHeight + emptyHeight
+      : headerHeight + visibleCount * rowHeight + padding;
+    invoke("resize_panel", { height });
+  }, [visibleCount]);
+
   return (
-    <div className="flex flex-col h-screen rounded-2xl overflow-hidden border border-white/[0.07] bg-[#0d0d0f]/[0.97] backdrop-blur-2xl shadow-2xl">
+    <div className="flex flex-col h-screen overflow-hidden bg-[#0d0d0f]">
       <Header />
       <div className="flex-1 overflow-y-auto">
         <SessionList />

@@ -194,6 +194,8 @@ impl SessionManager {
                                     updated_at: now,
                                     model: model.clone(),
                                     current_tool: None,
+                                    initial_prompt: None,
+                                    last_user_prompt: None,
                                     pending_permission: None,
                                 },
                             );
@@ -209,9 +211,17 @@ impl SessionManager {
                     } => {
                         if let Some(session) = map.get_mut(session_id) {
                             session.phase = phase.clone();
-                            session.summary = summary.clone();
                             session.current_tool = tool_name.clone();
                             session.updated_at = now;
+
+                            // Capture user prompt from "Prompt: ..." summaries
+                            if let Some(prompt) = summary.strip_prefix("Prompt: ") {
+                                session.last_user_prompt = Some(prompt.to_string());
+                                if session.initial_prompt.is_none() {
+                                    session.initial_prompt = Some(prompt.to_string());
+                                }
+                            }
+                            session.summary = summary.clone();
                         }
                     }
 

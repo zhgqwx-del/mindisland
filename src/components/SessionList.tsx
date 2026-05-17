@@ -3,14 +3,13 @@ import type { AgentSession } from "../stores/sessions";
 import { SessionRow } from "./SessionRow";
 
 function isVisible(s: AgentSession): boolean {
-  // Aligned with Open Vibe Island's isVisibleInIsland:
-  // Show sessions that are active, or completed within the last 5 minutes
+  // Active sessions always visible
   if (s.phase === "running" || s.phase === "waiting-for-approval" || s.phase === "waiting-for-answer") {
     return true;
   }
-  // Recently completed — keep visible briefly so user sees the result
-  const fiveMinutes = 5 * 60 * 1000;
-  return s.phase === "completed" && Date.now() - s.updatedAt < fiveMinutes;
+  // Completed: only show if updated within last 2 minutes (just finished)
+  const twoMinutes = 2 * 60 * 1000;
+  return s.phase === "completed" && Date.now() - s.updatedAt < twoMinutes;
 }
 
 export function SessionList() {

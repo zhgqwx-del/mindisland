@@ -2021,6 +2021,7 @@ dependencies = [
  "tauri",
  "tauri-build",
  "tauri-plugin-shell",
+ "tauri-utils",
  "tokio",
 ]
 

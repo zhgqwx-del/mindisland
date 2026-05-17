@@ -29,8 +29,8 @@ impl ClaudeTranscriptDiscovery {
             .join(".claude/projects");
         Self {
             root,
-            max_age: Duration::from_secs(86_400), // 24 hours
-            max_files: 20,
+            max_age: Duration::from_secs(1_800), // 30 min — only very recent sessions
+            max_files: 5,
         }
     }
 

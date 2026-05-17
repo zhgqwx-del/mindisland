@@ -14,6 +14,7 @@ eventsource-client = "0.13"
 futures = "0.3"
 base64 = "0.22"
 dirs = "6"
+tauri-utils = "2"
 chrono = "0.4"
 
 [build-dependencies]

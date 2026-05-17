@@ -8,6 +8,7 @@ mod tray;
 use hook_installer::{HookInstaller, HookStatus};
 use session::SessionManager;
 use tauri::Manager;
+use tauri::LogicalSize;
 
 const HOOK_SCRIPT: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -36,6 +37,12 @@ fn toggle_mute(state: tauri::State<'_, SessionManager>) -> bool {
 #[tauri::command]
 fn is_muted(state: tauri::State<'_, SessionManager>) -> bool {
     state.is_muted()
+}
+
+#[tauri::command]
+fn resize_panel(window: tauri::WebviewWindow, height: f64) {
+    let h = height.max(100.0).min(560.0);
+    let _ = window.set_size(LogicalSize::new(380.0, h));
 }
 
 #[tauri::command]
@@ -88,6 +95,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_sessions,
             resolve_permission,
+            resize_panel,
             toggle_mute,
             is_muted,
             get_hook_status,

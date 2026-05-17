@@ -12,6 +12,8 @@ export interface AgentSession {
   updatedAt: number;
   model?: string;
   currentTool?: string;
+  initialPrompt?: string;
+  lastUserPrompt?: string;
   pendingPermission?: {
     id: string;
     title: string;
