@@ -1,3 +1,4 @@
+import { invoke } from "@tauri-apps/api/core";
 import type { AgentSession } from "../stores/sessions";
 
 function PhaseDot({ phase }: { phase: AgentSession["phase"] }) {
@@ -32,17 +33,24 @@ function shortenDir(dir: string): string {
 }
 
 export function SessionRow({ session }: { session: AgentSession }) {
+  const handlePermission = (approved: boolean) => {
+    invoke("resolve_permission", {
+      sessionId: session.id,
+      approved,
+    });
+  };
+
   return (
     <div
       className={`rounded-lg border p-3 transition-colors ${
         session.phase === "waiting-for-approval" || session.phase === "waiting-for-answer"
           ? "bg-zinc-800 border-orange-500/40"
           : session.phase === "running"
-          ? "bg-zinc-800/80 border-zinc-600/50"
-          : "bg-zinc-800/50 border-zinc-700/40"
+            ? "bg-zinc-800/80 border-zinc-600/50"
+            : "bg-zinc-800/50 border-zinc-700/40"
       }`}
     >
-      {/* Header: agent + directory + phase dot */}
+      {/* Header */}
       <div className="flex items-center gap-2 mb-1">
         <span
           className="w-2.5 h-2.5 rounded-sm shrink-0"
@@ -78,10 +86,16 @@ export function SessionRow({ session }: { session: AgentSession }) {
             {session.pendingPermission.description}
           </p>
           <div className="flex gap-2">
-            <button className="flex-1 text-xs px-3 py-1.5 rounded bg-green-600 hover:bg-green-500 text-white font-medium transition-colors">
+            <button
+              onClick={() => handlePermission(true)}
+              className="flex-1 text-xs px-3 py-1.5 rounded bg-green-600 hover:bg-green-500 text-white font-medium transition-colors"
+            >
               Allow
             </button>
-            <button className="flex-1 text-xs px-3 py-1.5 rounded bg-zinc-700 hover:bg-zinc-600 text-zinc-300 font-medium transition-colors">
+            <button
+              onClick={() => handlePermission(false)}
+              className="flex-1 text-xs px-3 py-1.5 rounded bg-zinc-700 hover:bg-zinc-600 text-zinc-300 font-medium transition-colors"
+            >
               Deny
             </button>
           </div>

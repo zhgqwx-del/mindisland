@@ -4,7 +4,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter};
 use tokio::sync::mpsc;
 
-use crate::agents::claude::ClaudeCodeAdapter;
+use crate::agents::claude::{ClaudeCodeAdapter, PermissionResponse};
 use crate::agents::claude_discovery::ClaudeTranscriptDiscovery;
 use crate::event::{AgentEvent, AgentSession, SessionPhase};
 
@@ -25,6 +25,7 @@ fn agent_meta(agent_id: &str) -> AgentMeta {
 pub struct SessionManager {
     sessions: Arc<Mutex<HashMap<String, AgentSession>>>,
     app_handle: AppHandle,
+    claude: Arc<ClaudeCodeAdapter>,
 }
 
 impl SessionManager {
@@ -32,6 +33,7 @@ impl SessionManager {
         Self {
             sessions: Arc::new(Mutex::new(HashMap::new())),
             app_handle,
+            claude: Arc::new(ClaudeCodeAdapter::new()),
         }
     }
 
@@ -42,10 +44,40 @@ impl SessionManager {
         list
     }
 
+    pub fn resolve_permission(&self, session_id: &str, approved: bool) {
+        let resolved = self.claude.resolve_permission(
+            session_id,
+            PermissionResponse {
+                approved,
+                message: if approved { None } else { Some("Denied in MindIsland".to_string()) },
+            },
+        );
+
+        if resolved {
+            let mut sessions = self.sessions.lock().unwrap();
+            if let Some(session) = sessions.get_mut(session_id) {
+                session.pending_permission = None;
+                session.phase = if approved {
+                    SessionPhase::Running
+                } else {
+                    SessionPhase::Completed
+                };
+                session.summary = if approved {
+                    "Permission approved".to_string()
+                } else {
+                    "Permission denied".to_string()
+                };
+                session.updated_at = now_millis();
+            }
+            let list: Vec<AgentSession> = sessions.values().cloned().collect();
+            let _ = self.app_handle.emit("sessions-updated", &list);
+        }
+    }
+
     pub async fn start_monitoring(&self) -> Result<(), String> {
         let (tx, mut rx) = mpsc::channel::<AgentEvent>(256);
 
-        // --- Discover existing Claude Code sessions from transcripts ---
+        // --- Discover existing sessions from transcripts ---
         let tx_disc = tx.clone();
         tokio::spawn(async move {
             let discovery = ClaudeTranscriptDiscovery::new();
@@ -54,8 +86,8 @@ impl SessionManager {
             }
         });
 
-        // --- Claude Code (Unix Socket hook bridge) ---
-        let claude = Arc::new(ClaudeCodeAdapter::new());
+        // --- Claude Code hook bridge ---
+        let claude = self.claude.clone();
         if ClaudeCodeAdapter::is_installed() {
             let tx_cc = tx.clone();
             eprintln!(
@@ -67,12 +99,7 @@ impl SessionManager {
                     eprintln!("[mindisland] Claude Code bridge error: {}", e);
                 }
             });
-        } else {
-            eprintln!("[mindisland] Claude Code not installed, skipping");
         }
-
-        // TODO: OpenCode adapter (Phase 2)
-        // TODO: UltraWork adapter (Phase 3)
 
         // --- Event processor ---
         let sessions = self.sessions.clone();
@@ -80,10 +107,7 @@ impl SessionManager {
         tokio::spawn(async move {
             while let Some(event) = rx.recv().await {
                 let mut map = sessions.lock().unwrap();
-                let now = SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap()
-                    .as_millis() as u64;
+                let now = now_millis();
 
                 match &event {
                     AgentEvent::SessionStarted {
@@ -93,7 +117,6 @@ impl SessionManager {
                         directory,
                         model,
                     } => {
-                        // Only create if not exists (idempotent)
                         if !map.contains_key(session_id) {
                             let meta = agent_meta(agent_id);
                             map.insert(
@@ -113,21 +136,15 @@ impl SessionManager {
                                     pending_permission: None,
                                 },
                             );
-                        } else {
-                            // Update model if provided
-                            if let Some(session) = map.get_mut(session_id) {
-                                if model.is_some() {
-                                    session.model = model.clone();
-                                }
+                        } else if let Some(session) = map.get_mut(session_id) {
+                            if model.is_some() {
+                                session.model = model.clone();
                             }
                         }
                     }
 
                     AgentEvent::ActivityUpdated {
-                        session_id,
-                        phase,
-                        summary,
-                        tool_name,
+                        session_id, phase, summary, tool_name,
                     } => {
                         if let Some(session) = map.get_mut(session_id) {
                             session.phase = phase.clone();
@@ -138,8 +155,7 @@ impl SessionManager {
                     }
 
                     AgentEvent::PermissionRequested {
-                        session_id,
-                        permission,
+                        session_id, permission,
                     } => {
                         if let Some(session) = map.get_mut(session_id) {
                             session.phase = SessionPhase::WaitingForApproval;
@@ -150,8 +166,7 @@ impl SessionManager {
                     }
 
                     AgentEvent::QuestionAsked {
-                        session_id,
-                        question,
+                        session_id, question,
                     } => {
                         if let Some(session) = map.get_mut(session_id) {
                             session.phase = SessionPhase::WaitingForAnswer;
@@ -161,8 +176,7 @@ impl SessionManager {
                     }
 
                     AgentEvent::SessionCompleted {
-                        session_id,
-                        summary,
+                        session_id, summary,
                     } => {
                         if let Some(session) = map.get_mut(session_id) {
                             session.phase = SessionPhase::Completed;
@@ -174,12 +188,10 @@ impl SessionManager {
                     }
 
                     AgentEvent::SessionEnded { session_id } => {
-                        // Remove ended sessions from the list
                         map.remove(session_id);
                     }
                 }
 
-                // Emit to frontend
                 let list: Vec<AgentSession> = map.values().cloned().collect();
                 let _ = app_handle.emit("sessions-updated", &list);
             }
@@ -187,4 +199,11 @@ impl SessionManager {
 
         Ok(())
     }
+}
+
+fn now_millis() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as u64
 }

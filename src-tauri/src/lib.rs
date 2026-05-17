@@ -11,6 +11,15 @@ fn get_sessions(state: tauri::State<'_, SessionManager>) -> Vec<event::AgentSess
     state.get_sessions()
 }
 
+#[tauri::command]
+fn resolve_permission(
+    state: tauri::State<'_, SessionManager>,
+    session_id: String,
+    approved: bool,
+) {
+    state.resolve_permission(&session_id, approved);
+}
+
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
@@ -32,7 +41,7 @@ pub fn run() {
             tray::setup_tray(app)?;
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_sessions])
+        .invoke_handler(tauri::generate_handler![get_sessions, resolve_permission])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
