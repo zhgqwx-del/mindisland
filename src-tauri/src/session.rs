@@ -113,14 +113,26 @@ impl SessionManager {
     pub async fn start_monitoring(&self) -> Result<(), String> {
         let (tx, mut rx) = mpsc::channel::<AgentEvent>(256);
 
-        // --- Clean up stale sessions (completed > 2 hours ago) ---
+        // --- Clean up stale sessions on startup ---
+        // Mark all non-terminal sessions as Completed (they were saved mid-run
+        // before a restart). Live sessions will be re-activated by new hook
+        // events or transcript discovery.
         {
             let mut sessions = self.sessions.lock().unwrap();
             let now = now_millis();
             let two_hours = 2 * 3600 * 1000;
-            sessions.retain(|_, s| {
-                s.phase != SessionPhase::Completed || (now - s.updated_at) < two_hours
-            });
+            for session in sessions.values_mut() {
+                if session.phase != SessionPhase::Completed {
+                    session.phase = SessionPhase::Completed;
+                    session.summary = "MindIsland restarted".to_string();
+                    session.current_tool = None;
+                    session.pending_permission = None;
+                    // Keep original updated_at so stale sessions don't
+                    // reappear in the 2-minute visibility window.
+                }
+            }
+            // Remove sessions completed > 2 hours ago
+            sessions.retain(|_, s| (now - s.updated_at) < two_hours);
             self.registry.save(&sessions.values().cloned().collect::<Vec<_>>());
         }
 
@@ -210,9 +222,17 @@ impl SessionManager {
                         session_id, phase, summary, tool_name,
                     } => {
                         if let Some(session) = map.get_mut(session_id) {
+                            // Don't bump timestamp when re-discovering an
+                            // already-completed session (transcript discovery).
+                            // This prevents stale sessions from reappearing in
+                            // the 2-minute visibility window after restart.
+                            let is_rediscovery = session.phase == SessionPhase::Completed
+                                && *phase == SessionPhase::Completed;
                             session.phase = phase.clone();
                             session.current_tool = tool_name.clone();
-                            session.updated_at = now;
+                            if !is_rediscovery {
+                                session.updated_at = now;
+                            }
 
                             // Capture user prompt from "Prompt: ..." summaries
                             if let Some(prompt) = summary.strip_prefix("Prompt: ") {
