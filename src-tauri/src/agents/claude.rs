@@ -302,6 +302,39 @@ fn translate(p: &Payload) -> Vec<AgentEvent> {
             ]
         }
 
+        "PostToolUseFailure" => {
+            let msg = p
+                .error
+                .as_deref()
+                .map(|e| clip(e, 80))
+                .unwrap_or_else(|| "Tool failed".to_string());
+            let is_interrupt = p.is_interrupt.unwrap_or(false);
+            vec![
+                ensure_session,
+                AgentEvent::ActivityUpdated {
+                    session_id,
+                    phase: if is_interrupt { SessionPhase::Completed } else { SessionPhase::Running },
+                    summary: msg,
+                    tool_name: None,
+                },
+            ]
+        }
+
+        "PermissionDenied" => {
+            let msg = p
+                .error
+                .as_deref()
+                .map(|e| clip(e, 80))
+                .unwrap_or_else(|| "Permission denied".to_string());
+            vec![
+                ensure_session,
+                AgentEvent::SessionCompleted {
+                    session_id,
+                    summary: msg,
+                },
+            ]
+        }
+
         "PermissionRequest" => {
             let tool = p.tool_name.as_deref().unwrap_or("tool");
             let desc = tool_detail(tool, &p.tool_input);
