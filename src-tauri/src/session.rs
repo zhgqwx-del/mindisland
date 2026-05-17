@@ -225,10 +225,18 @@ impl SessionManager {
                         session_id, phase, summary, tool_name,
                     } => {
                         if let Some(session) = map.get_mut(session_id) {
+                            // Don't overwrite WaitingForApproval/WaitingForAnswer
+                            // with Running — the permission/question hasn't been
+                            // resolved yet. OpenCode sends tool events right after
+                            // permission.asked, which would hide the approval UI.
+                            let is_waiting = session.phase == SessionPhase::WaitingForApproval
+                                || session.phase == SessionPhase::WaitingForAnswer;
+                            if is_waiting && *phase == SessionPhase::Running {
+                                continue;
+                            }
+
                             // Don't bump timestamp when re-discovering an
                             // already-completed session (transcript discovery).
-                            // This prevents stale sessions from reappearing in
-                            // the 2-minute visibility window after restart.
                             let is_rediscovery = session.phase == SessionPhase::Completed
                                 && *phase == SessionPhase::Completed;
                             session.phase = phase.clone();
