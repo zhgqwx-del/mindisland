@@ -84,11 +84,9 @@ pub fn show_panel(app: &tauri::AppHandle) {
     let window = get_or_create_panel(app);
     if let Some(window) = window {
         LAST_SHOW_MS.store(now_ms(), Ordering::Relaxed);
-        if !window.is_visible().unwrap_or(false) {
-            position_panel(&window);
-            let _ = window.show();
-        }
-        // Always try to bring to front, even if already visible
+        // Always reposition and show — the panel may be behind other windows
+        position_panel(&window);
+        let _ = window.show();
         let _ = window.set_focus();
         let _ = window.emit("panel-opened", ());
     }

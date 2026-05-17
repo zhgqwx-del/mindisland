@@ -9,6 +9,11 @@ trap 'rm -f "$TMPFILE"' EXIT
 cat > "$TMPFILE"
 [ ! -s "$TMPFILE" ] && exit 0
 
+# Debug: log PermissionRequest payloads
+if grep -q '"PermissionRequest"' "$TMPFILE" 2>/dev/null; then
+  cp "$TMPFILE" /tmp/mindisland-last-permission-payload.json 2>/dev/null
+fi
+
 # Check if this is a PermissionRequest (needs bidirectional communication)
 IS_PERMISSION=$(python3 -c "
 import json, sys
