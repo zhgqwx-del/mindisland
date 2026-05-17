@@ -183,6 +183,8 @@ impl SessionManager {
         let sound_muted = self.sound_muted.clone();
         tokio::spawn(async move {
             while let Some(event) = rx.recv().await {
+                // Process event under lock, then release before side effects
+                let list = {
                 let mut map = sessions.lock().unwrap();
                 let now = now_millis();
 
@@ -298,6 +300,9 @@ impl SessionManager {
                 }
 
                 let list: Vec<AgentSession> = map.values().cloned().collect();
+                list
+                }; // ← mutex released here, BEFORE side effects
+
                 let _ = app_handle.emit("sessions-updated", &list);
                 registry.save(&list);
 

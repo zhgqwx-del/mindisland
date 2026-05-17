@@ -9,7 +9,6 @@ const os = require("os");
 const fs = require("fs");
 
 const SOCKET = "/tmp/mindisland-claude.sock";
-
 // --- Socket helpers ---
 
 function socketExists() {
