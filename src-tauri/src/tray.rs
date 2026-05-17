@@ -4,14 +4,24 @@ use tauri::{
     App, Emitter, Listener, Manager, WebviewUrl, WebviewWindowBuilder,
 };
 
+const ICON_IDLE: &[u8] = include_bytes!("../icons/tray-idle.png");
+const ICON_ACTIVE: &[u8] = include_bytes!("../icons/tray-active.png");
+const ICON_ATTENTION: &[u8] = include_bytes!("../icons/tray-attention.png");
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum TrayState {
+    Idle,
+    Active,
+    Attention,
+}
+
 pub fn setup_tray(app: &App) -> Result<(), Box<dyn std::error::Error>> {
-    let icon_bytes = include_bytes!("../icons/tray-icon.png");
-    let icon = Image::from_bytes(icon_bytes)?;
+    let icon = Image::from_bytes(ICON_IDLE)?;
 
     let _tray = TrayIconBuilder::with_id("main-tray")
         .icon(icon)
-        .icon_as_template(true)
-        .tooltip("MindIsland")
+        .icon_as_template(false)
+        .tooltip("MindIsland — idle")
         .on_tray_icon_event(|tray, event| {
             if let TrayIconEvent::Click {
                 button: MouseButton::Left,
@@ -26,6 +36,20 @@ pub fn setup_tray(app: &App) -> Result<(), Box<dyn std::error::Error>> {
         .build(app)?;
 
     Ok(())
+}
+
+pub fn update_tray_state(app: &tauri::AppHandle, state: TrayState) {
+    if let Some(tray) = app.tray_by_id("main-tray") {
+        let (icon_bytes, tooltip) = match state {
+            TrayState::Idle => (ICON_IDLE, "MindIsland — idle"),
+            TrayState::Active => (ICON_ACTIVE, "MindIsland — agents running"),
+            TrayState::Attention => (ICON_ATTENTION, "MindIsland — needs attention"),
+        };
+        if let Ok(icon) = Image::from_bytes(icon_bytes) {
+            let _ = tray.set_icon(Some(icon));
+            let _ = tray.set_tooltip(Some(tooltip));
+        }
+    }
 }
 
 fn toggle_panel(app: &tauri::AppHandle) {
@@ -43,7 +67,6 @@ fn toggle_panel(app: &tauri::AppHandle) {
                 .build()
                 .expect("failed to create panel window");
 
-            // Auto-hide when focus is lost
             let w_clone = w.clone();
             w.on_window_event(move |event| {
                 if let tauri::WindowEvent::Focused(false) = event {
@@ -61,7 +84,6 @@ fn toggle_panel(app: &tauri::AppHandle) {
         position_panel_near_tray(&window);
         let _ = window.show();
         let _ = window.set_focus();
-        // Push latest sessions to frontend when panel opens
         let _ = window.emit("panel-opened", ());
     }
 }

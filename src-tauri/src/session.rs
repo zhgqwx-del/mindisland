@@ -8,6 +8,7 @@ use crate::agents::claude::{ClaudeCodeAdapter, PermissionResponse};
 use crate::agents::claude_discovery::ClaudeTranscriptDiscovery;
 use crate::event::{AgentEvent, AgentSession, SessionPhase};
 use crate::session_registry::SessionRegistry;
+use crate::tray;
 
 struct AgentMeta {
     name: &'static str,
@@ -221,9 +222,22 @@ impl SessionManager {
 
                 let list: Vec<AgentSession> = map.values().cloned().collect();
                 let _ = app_handle.emit("sessions-updated", &list);
-
-                // Persist to disk (debounce-friendly — just overwrite)
                 registry.save(&list);
+
+                // Update tray icon based on session states
+                let has_attention = list.iter().any(|s| {
+                    s.phase == SessionPhase::WaitingForApproval
+                        || s.phase == SessionPhase::WaitingForAnswer
+                });
+                let has_active = list.iter().any(|s| s.phase == SessionPhase::Running);
+                let state = if has_attention {
+                    tray::TrayState::Attention
+                } else if has_active {
+                    tray::TrayState::Active
+                } else {
+                    tray::TrayState::Idle
+                };
+                tray::update_tray_state(&app_handle, state);
             }
         });
 
