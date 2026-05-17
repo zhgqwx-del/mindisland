@@ -15,6 +15,11 @@ const HOOK_SCRIPT: &str = concat!(
     "/../hooks/mindisland-claude-hook.sh"
 );
 
+const OPENCODE_PLUGIN: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../hooks/mindisland-opencode-plugin.js"
+);
+
 #[tauri::command]
 fn get_sessions(state: tauri::State<'_, SessionManager>) -> Vec<event::AgentSession> {
     state.get_sessions()
@@ -78,13 +83,25 @@ pub fn run() {
                 }
             });
 
+            // Auto-install Claude Code hooks
             if agents::claude::ClaudeCodeAdapter::is_installed() {
                 let installer = HookInstaller::new(HOOK_SCRIPT.to_string());
                 let status = installer.status();
                 if !status.installed {
                     match installer.install() {
-                        Ok(s) => eprintln!("[mindisland] Auto-installed hooks for {} events", s.events_registered),
-                        Err(e) => eprintln!("[mindisland] Failed to auto-install hooks: {}", e),
+                        Ok(s) => eprintln!("[mindisland] Auto-installed Claude Code hooks for {} events", s.events_registered),
+                        Err(e) => eprintln!("[mindisland] Failed to auto-install Claude Code hooks: {}", e),
+                    }
+                }
+            }
+
+            // Auto-install OpenCode plugin
+            if agents::opencode::OpenCodeInstaller::is_available() {
+                let oc_installer = agents::opencode::OpenCodeInstaller::new(OPENCODE_PLUGIN.to_string());
+                if !oc_installer.is_installed() {
+                    match oc_installer.install() {
+                        Ok(()) => eprintln!("[mindisland] Auto-installed OpenCode plugin"),
+                        Err(e) => eprintln!("[mindisland] Failed to auto-install OpenCode plugin: {}", e),
                     }
                 }
             }

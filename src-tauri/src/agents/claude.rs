@@ -50,6 +50,10 @@ struct Payload {
     agent_type: Option<String>,
     #[allow(dead_code)]
     notification_type: Option<String>,
+    /// Source identifier for multi-agent support.
+    /// OpenCode plugin sets this to "opencode".
+    #[serde(rename = "_source")]
+    source: Option<String>,
 }
 
 /// Claude Code stdout response for PermissionRequest hooks
@@ -243,8 +247,16 @@ fn translate(p: &Payload) -> Vec<AgentEvent> {
     };
     let cwd = p.cwd.as_deref().unwrap_or("").to_string();
 
+    // Detect source: OpenCode plugin sets _source="opencode" and prefixes
+    // session_id with "opencode-". Default to claude-code.
+    let agent_id = match p.source.as_deref() {
+        Some("opencode") => "opencode",
+        _ if session_id.starts_with("opencode-") => "opencode",
+        _ => "claude-code",
+    };
+
     let ensure_session = AgentEvent::SessionStarted {
-        agent_id: "claude-code".to_string(),
+        agent_id: agent_id.to_string(),
         session_id: session_id.clone(),
         title: p
             .title

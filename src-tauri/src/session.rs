@@ -344,37 +344,42 @@ impl SessionManager {
     }
 }
 
-/// Check if Claude Code processes are still running.
+/// Check if agent processes are still running.
 /// Mark sessions as completed if their process has exited.
 fn check_process_liveness(
     sessions: &Arc<Mutex<HashMap<String, AgentSession>>>,
     app_handle: &AppHandle,
     registry: &Arc<SessionRegistry>,
 ) {
-    // Check if any Claude Code CLI process is running.
-    // Use ps to find the exact "claude" binary; pgrep -f "claude" is too broad
-    // and matches Claude.app, MindIsland paths, hook scripts, etc.
-    let claude_alive = std::process::Command::new("sh")
-        .args(["-c", "ps -eo comm= | grep -qx claude"])
+    // Check which agent processes are alive
+    let processes_output = std::process::Command::new("sh")
+        .args(["-c", "ps -eo comm="])
         .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false);
+        .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
+        .unwrap_or_default();
 
-    if claude_alive {
-        return; // At least one Claude process is running, don't touch sessions
-    }
+    let claude_alive = processes_output.lines().any(|l| l.trim() == "claude");
+    let opencode_alive = processes_output.lines().any(|l| l.trim() == "opencode");
 
-    // No Claude process found — mark active sessions as completed
     let mut sessions = sessions.lock().unwrap();
     let now = now_millis();
     let mut changed = false;
 
     for session in sessions.values_mut() {
-        if session.agent_id == "claude-code"
-            && (session.phase == SessionPhase::Running
-                || session.phase == SessionPhase::WaitingForApproval
-                || session.phase == SessionPhase::WaitingForAnswer)
-        {
+        let is_active = session.phase == SessionPhase::Running
+            || session.phase == SessionPhase::WaitingForApproval
+            || session.phase == SessionPhase::WaitingForAnswer;
+        if !is_active {
+            continue;
+        }
+
+        let process_dead = match session.agent_id.as_str() {
+            "claude-code" => !claude_alive,
+            "opencode" => !opencode_alive,
+            _ => false,
+        };
+
+        if process_dead {
             session.phase = SessionPhase::Completed;
             session.summary = "Process exited".to_string();
             session.current_tool = None;
@@ -388,7 +393,7 @@ fn check_process_liveness(
         let list: Vec<AgentSession> = sessions.values().cloned().collect();
         let _ = app_handle.emit("sessions-updated", &list);
         registry.save(&list);
-        eprintln!("[mindisland] Claude Code process not found, marked sessions as completed");
+        eprintln!("[mindisland] Agent process not found, marked sessions as completed");
     }
 }
 
