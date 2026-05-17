@@ -1,5 +1,6 @@
 mod event;
 mod session;
+mod session_registry;
 mod agents;
 mod tray;
 

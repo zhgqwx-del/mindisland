@@ -7,6 +7,7 @@ use tokio::sync::mpsc;
 use crate::agents::claude::{ClaudeCodeAdapter, PermissionResponse};
 use crate::agents::claude_discovery::ClaudeTranscriptDiscovery;
 use crate::event::{AgentEvent, AgentSession, SessionPhase};
+use crate::session_registry::SessionRegistry;
 
 struct AgentMeta {
     name: &'static str,
@@ -24,14 +25,27 @@ fn agent_meta(agent_id: &str) -> AgentMeta {
 #[derive(Clone)]
 pub struct SessionManager {
     sessions: Arc<Mutex<HashMap<String, AgentSession>>>,
+    registry: Arc<SessionRegistry>,
     app_handle: AppHandle,
     claude: Arc<ClaudeCodeAdapter>,
 }
 
 impl SessionManager {
     pub fn new(app_handle: AppHandle) -> Self {
+        let registry = Arc::new(SessionRegistry::new());
+
+        // Restore persisted sessions
+        let mut initial = HashMap::new();
+        for session in registry.load() {
+            initial.insert(session.id.clone(), session);
+        }
+        if !initial.is_empty() {
+            eprintln!("[mindisland] Restored {} sessions from registry", initial.len());
+        }
+
         Self {
-            sessions: Arc::new(Mutex::new(HashMap::new())),
+            sessions: Arc::new(Mutex::new(initial)),
+            registry,
             app_handle,
             claude: Arc::new(ClaudeCodeAdapter::new()),
         }
@@ -71,6 +85,7 @@ impl SessionManager {
             }
             let list: Vec<AgentSession> = sessions.values().cloned().collect();
             let _ = self.app_handle.emit("sessions-updated", &list);
+            self.registry.save(&list);
         }
     }
 
@@ -104,6 +119,7 @@ impl SessionManager {
         // --- Event processor ---
         let sessions = self.sessions.clone();
         let app_handle = self.app_handle.clone();
+        let registry = self.registry.clone();
         tokio::spawn(async move {
             while let Some(event) = rx.recv().await {
                 let mut map = sessions.lock().unwrap();
@@ -194,6 +210,9 @@ impl SessionManager {
 
                 let list: Vec<AgentSession> = map.values().cloned().collect();
                 let _ = app_handle.emit("sessions-updated", &list);
+
+                // Persist to disk (debounce-friendly — just overwrite)
+                registry.save(&list);
             }
         });
 
