@@ -56,7 +56,30 @@ pub fn update_tray_state(app: &tauri::AppHandle, state: TrayState) {
 pub fn show_panel(app: &tauri::AppHandle) {
     let window = match app.get_webview_window("panel") {
         Some(w) => w,
-        None => return,
+        None => {
+            // Window not created yet — create it now
+            let w = WebviewWindowBuilder::new(app, "panel", WebviewUrl::default())
+                .title("MindIsland")
+                .inner_size(360.0, 480.0)
+                .resizable(false)
+                .decorations(false)
+                .always_on_top(true)
+                .skip_taskbar(true)
+                .visible(false)
+                .build();
+            match w {
+                Ok(w) => {
+                    let w_clone = w.clone();
+                    w.on_window_event(move |event| {
+                        if let tauri::WindowEvent::Focused(false) = event {
+                            let _ = w_clone.hide();
+                        }
+                    });
+                    w
+                }
+                Err(_) => return,
+            }
+        }
     };
     if !window.is_visible().unwrap_or(false) {
         position_panel_near_tray(&window);

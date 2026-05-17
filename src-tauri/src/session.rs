@@ -239,14 +239,25 @@ impl SessionManager {
                 };
                 tray::update_tray_state(&app_handle, state);
 
-                // Auto-show panel when permission/question needs attention
+                // Auto-show panel + play sound when permission/question needs attention
                 if has_attention {
                     tray::show_panel(&app_handle);
+                    play_notification_sound();
                 }
             }
         });
 
         Ok(())
+    }
+}
+
+fn play_notification_sound() {
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("afplay")
+            .arg("/System/Library/Sounds/Glass.aiff")
+            .spawn()
+            .ok();
     }
 }
 
