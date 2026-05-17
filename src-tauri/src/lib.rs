@@ -1,11 +1,18 @@
 mod event;
 mod session;
 mod session_registry;
+mod hook_installer;
 mod agents;
 mod tray;
 
+use hook_installer::{HookInstaller, HookStatus};
 use session::SessionManager;
 use tauri::Manager;
+
+const HOOK_SCRIPT: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../hooks/mindisland-claude-hook.sh"
+);
 
 #[tauri::command]
 fn get_sessions(state: tauri::State<'_, SessionManager>) -> Vec<event::AgentSession> {
@@ -19,6 +26,21 @@ fn resolve_permission(
     approved: bool,
 ) {
     state.resolve_permission(&session_id, approved);
+}
+
+#[tauri::command]
+fn get_hook_status() -> HookStatus {
+    HookInstaller::new(HOOK_SCRIPT.to_string()).status()
+}
+
+#[tauri::command]
+fn install_hooks() -> Result<HookStatus, String> {
+    HookInstaller::new(HOOK_SCRIPT.to_string()).install()
+}
+
+#[tauri::command]
+fn uninstall_hooks() -> Result<HookStatus, String> {
+    HookInstaller::new(HOOK_SCRIPT.to_string()).uninstall()
 }
 
 pub fn run() {
@@ -39,10 +61,28 @@ pub fn run() {
                 }
             });
 
+            // Auto-install hooks on first launch if Claude Code is detected
+            if agents::claude::ClaudeCodeAdapter::is_installed() {
+                let installer = HookInstaller::new(HOOK_SCRIPT.to_string());
+                let status = installer.status();
+                if !status.installed {
+                    match installer.install() {
+                        Ok(s) => eprintln!("[mindisland] Auto-installed hooks for {} events", s.events_registered),
+                        Err(e) => eprintln!("[mindisland] Failed to auto-install hooks: {}", e),
+                    }
+                }
+            }
+
             tray::setup_tray(app)?;
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_sessions, resolve_permission])
+        .invoke_handler(tauri::generate_handler![
+            get_sessions,
+            resolve_permission,
+            get_hook_status,
+            install_hooks,
+            uninstall_hooks
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
