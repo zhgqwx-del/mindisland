@@ -238,6 +238,11 @@ impl SessionManager {
                     tray::TrayState::Idle
                 };
                 tray::update_tray_state(&app_handle, state);
+
+                // Auto-show panel when permission/question needs attention
+                if has_attention {
+                    tray::show_panel(&app_handle);
+                }
             }
         });
 

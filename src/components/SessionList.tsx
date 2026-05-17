@@ -6,7 +6,11 @@ import { SessionRow } from "./SessionRow";
 const ONE_HOUR = 3600000;
 
 function isActive(s: AgentSession): boolean {
-  return s.phase === "running" || s.phase === "waiting-for-approval" || s.phase === "waiting-for-answer";
+  return (
+    s.phase === "running" ||
+    s.phase === "waiting-for-approval" ||
+    s.phase === "waiting-for-answer"
+  );
 }
 
 function isRecent(s: AgentSession): boolean {
@@ -15,57 +19,62 @@ function isRecent(s: AgentSession): boolean {
 
 export function SessionList() {
   const sessions = useSessionStore((s) => s.sessions);
-  const [showCompleted, setShowCompleted] = useState(false);
+  const [showOlder, setShowOlder] = useState(false);
 
   if (sessions.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 px-4 text-zinc-500">
-        <div className="text-3xl mb-3">🏝️</div>
-        <p className="text-sm">No active sessions</p>
-        <p className="text-xs mt-1 text-zinc-600">
-          Start an AI agent to see it here
+      <div className="flex flex-col items-center justify-center py-16 px-4">
+        <div className="w-10 h-10 rounded-full bg-zinc-800/60 flex items-center justify-center mb-3">
+          <span className="text-lg opacity-50">🏝️</span>
+        </div>
+        <p className="text-[12px] text-zinc-500 font-medium">No sessions</p>
+        <p className="text-[11px] text-zinc-600 mt-1">
+          Start a coding agent to monitor it here
         </p>
       </div>
     );
   }
 
-  // Split sessions: active first, then recent completed, then old
   const active = sessions.filter(isActive);
-  const recentCompleted = sessions.filter((s) => !isActive(s) && isRecent(s));
-  const oldCompleted = sessions.filter((s) => !isActive(s) && !isRecent(s));
+  const recentDone = sessions.filter((s) => !isActive(s) && isRecent(s));
+  const olderDone = sessions.filter((s) => !isActive(s) && !isRecent(s));
 
   return (
-    <div className="flex flex-col gap-1 p-2">
-      {/* Active sessions — always visible, prominent */}
-      {active.map((session) => (
-        <SessionRow key={session.id} session={session} />
+    <div className="flex flex-col gap-1.5 p-2">
+      {/* Active sessions */}
+      {active.map((s) => (
+        <SessionRow key={s.id} session={s} />
       ))}
 
-      {/* Recent completed — visible but dimmed */}
-      {recentCompleted.map((session) => (
-        <SessionRow key={session.id} session={session} compact />
-      ))}
-
-      {/* Old completed — collapsed by default */}
-      {oldCompleted.length > 0 && (
-        <>
-          <button
-            onClick={() => setShowCompleted(!showCompleted)}
-            className="text-xs text-zinc-600 hover:text-zinc-400 py-1.5 transition-colors"
-          >
-            {showCompleted ? "Hide" : "Show"} {oldCompleted.length} older session{oldCompleted.length !== 1 ? "s" : ""}
-          </button>
-          {showCompleted &&
-            oldCompleted.map((session) => (
-              <SessionRow key={session.id} session={session} compact />
-            ))}
-        </>
+      {/* Divider if both active and completed exist */}
+      {active.length > 0 && (recentDone.length > 0 || olderDone.length > 0) && (
+        <div className="h-px bg-white/[0.04] mx-2 my-1" />
       )}
 
-      {/* No active sessions message */}
-      {active.length === 0 && recentCompleted.length > 0 && (
-        <div className="text-center py-3 text-xs text-zinc-600">
-          No active sessions
+      {/* Recent completed */}
+      {recentDone.map((s) => (
+        <SessionRow key={s.id} session={s} compact />
+      ))}
+
+      {/* Older completed toggle */}
+      {olderDone.length > 0 && (
+        <button
+          onClick={() => setShowOlder(!showOlder)}
+          className="flex items-center justify-center gap-1 text-[10px] text-zinc-600 hover:text-zinc-400 py-1.5 transition-colors"
+        >
+          <span>{showOlder ? "▾" : "▸"}</span>
+          <span>
+            {olderDone.length} older session{olderDone.length !== 1 ? "s" : ""}
+          </span>
+        </button>
+      )}
+      {showOlder &&
+        olderDone.map((s) => <SessionRow key={s.id} session={s} compact />)}
+
+      {/* Idle indicator */}
+      {active.length === 0 && sessions.length > 0 && (
+        <div className="text-center py-2">
+          <span className="text-[10px] text-zinc-600">All agents idle</span>
         </div>
       )}
     </div>

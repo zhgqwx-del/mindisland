@@ -9,33 +9,17 @@ function App() {
   const setSessions = useSessionStore((s) => s.setSessions);
 
   const refresh = useCallback(() => {
-    invoke<AgentSession[]>("get_sessions").then((sessions) => {
-      setSessions(sessions);
-      if (sessions.length > 0) {
-        console.log("[mindisland] sessions:", sessions.map(s => ({
-          id: s.id.slice(0, 8),
-          phase: s.phase,
-          summary: s.summary,
-          tool: s.currentTool,
-        })));
-      }
-    });
+    invoke<AgentSession[]>("get_sessions").then(setSessions);
   }, [setSessions]);
 
   useEffect(() => {
-    // Initial load
     refresh();
 
-    // Real-time updates from Rust backend
     const unlistenUpdate = listen<AgentSession[]>(
       "sessions-updated",
       (event) => setSessions(event.payload)
     );
-
-    // Re-fetch when panel is opened (tray click)
     const unlistenOpen = listen("panel-opened", () => refresh());
-
-    // Backup: poll every 2s to catch any missed events
     const interval = setInterval(refresh, 2000);
 
     return () => {
@@ -46,9 +30,9 @@ function App() {
   }, [setSessions, refresh]);
 
   return (
-    <div className="flex flex-col h-screen rounded-xl overflow-hidden border border-zinc-700/50 bg-zinc-900/95 backdrop-blur-xl">
+    <div className="flex flex-col h-screen rounded-2xl overflow-hidden border border-white/[0.07] bg-[#0d0d0f]/95 backdrop-blur-2xl shadow-2xl">
       <Header />
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto scrollbar-thin">
         <SessionList />
       </div>
       <Footer />
@@ -59,34 +43,39 @@ function App() {
 function Header() {
   const sessions = useSessionStore((s) => s.sessions);
   const active = sessions.filter(
-    (s) => s.phase === "running" || s.phase === "waiting-for-approval" || s.phase === "waiting-for-answer"
+    (s) =>
+      s.phase === "running" ||
+      s.phase === "waiting-for-approval" ||
+      s.phase === "waiting-for-answer"
   );
   const attention = sessions.filter(
-    (s) => s.phase === "waiting-for-approval" || s.phase === "waiting-for-answer"
+    (s) =>
+      s.phase === "waiting-for-approval" || s.phase === "waiting-for-answer"
   ).length;
 
   return (
     <div
       data-tauri-drag-region
-      className="flex items-center justify-between px-4 py-3 border-b border-zinc-800"
+      className="flex items-center justify-between px-4 py-2.5 border-b border-white/[0.06]"
     >
       <div className="flex items-center gap-2">
-        <span className="text-base">🏝️</span>
-        <h1 className="text-sm font-semibold text-zinc-200">MindIsland</h1>
+        <h1 className="text-[13px] font-semibold text-[#f1ead9]">
+          MindIsland
+        </h1>
       </div>
-      <div className="flex items-center gap-2 text-xs">
+      <div className="flex items-center gap-2">
         {attention > 0 && (
-          <span className="bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full font-medium animate-pulse">
+          <span className="bg-rose-500/20 text-rose-400 text-[10px] px-2 py-0.5 rounded-full font-medium animate-pulse">
             {attention} needs action
           </span>
         )}
         {active.length > 0 && attention === 0 && (
-          <span className="bg-yellow-500/15 text-yellow-400 px-2 py-0.5 rounded-full">
+          <span className="bg-blue-500/15 text-blue-400 text-[10px] px-2 py-0.5 rounded-full font-medium">
             {active.length} active
           </span>
         )}
         {active.length === 0 && (
-          <span className="text-zinc-600">idle</span>
+          <span className="text-[10px] text-zinc-600 font-medium">idle</span>
         )}
       </div>
     </div>
@@ -98,11 +87,13 @@ function Footer() {
   const agents = new Set(sessions.map((s) => s.agentId)).size;
 
   return (
-    <div className="px-4 py-2 border-t border-zinc-800 flex items-center justify-between text-xs text-zinc-600">
-      <span>
-        {agents} agent{agents !== 1 ? "s" : ""} connected
+    <div className="px-4 py-2 border-t border-white/[0.06] flex items-center justify-between">
+      <span className="text-[10px] text-zinc-600">
+        {agents > 0
+          ? `${agents} agent${agents !== 1 ? "s" : ""}`
+          : "no agents"}
       </span>
-      <span className="text-zinc-700">v0.1.0</span>
+      <span className="text-[10px] text-zinc-700">v0.1.0</span>
     </div>
   );
 }

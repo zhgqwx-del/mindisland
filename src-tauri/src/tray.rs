@@ -52,6 +52,20 @@ pub fn update_tray_state(app: &tauri::AppHandle, state: TrayState) {
     }
 }
 
+/// Show the panel without toggling (for auto-popup on permission requests)
+pub fn show_panel(app: &tauri::AppHandle) {
+    let window = match app.get_webview_window("panel") {
+        Some(w) => w,
+        None => return,
+    };
+    if !window.is_visible().unwrap_or(false) {
+        position_panel_near_tray(&window);
+        let _ = window.show();
+        let _ = window.set_focus();
+        let _ = window.emit("panel-opened", ());
+    }
+}
+
 fn toggle_panel(app: &tauri::AppHandle) {
     let window = match app.get_webview_window("panel") {
         Some(w) => w,
