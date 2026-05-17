@@ -29,6 +29,16 @@ fn resolve_permission(
 }
 
 #[tauri::command]
+fn toggle_mute(state: tauri::State<'_, SessionManager>) -> bool {
+    state.toggle_mute()
+}
+
+#[tauri::command]
+fn is_muted(state: tauri::State<'_, SessionManager>) -> bool {
+    state.is_muted()
+}
+
+#[tauri::command]
 fn get_hook_status() -> HookStatus {
     HookInstaller::new(HOOK_SCRIPT.to_string()).status()
 }
@@ -61,7 +71,6 @@ pub fn run() {
                 }
             });
 
-            // Auto-install hooks on first launch if Claude Code is detected
             if agents::claude::ClaudeCodeAdapter::is_installed() {
                 let installer = HookInstaller::new(HOOK_SCRIPT.to_string());
                 let status = installer.status();
@@ -79,6 +88,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_sessions,
             resolve_permission,
+            toggle_mute,
+            is_muted,
             get_hook_status,
             install_hooks,
             uninstall_hooks
