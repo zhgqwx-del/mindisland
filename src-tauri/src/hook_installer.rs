@@ -48,6 +48,29 @@ impl HookInstaller {
 
     pub fn install(&self) -> Result<HookStatus, String> {
         let mut config = self.load_config().unwrap_or_else(|| json!({}));
+
+        // Remove any existing mindisland hooks with stale paths
+        // (e.g., from a previous install pointing to build-time source dir)
+        if let Some(hooks_obj) = config.get_mut("hooks").and_then(|v| v.as_object_mut()) {
+            for entries in hooks_obj.values_mut() {
+                if let Some(arr) = entries.as_array_mut() {
+                    arr.retain(|entry| {
+                        let is_stale_mindisland = entry
+                            .get("hooks")
+                            .and_then(|h| h.as_array())
+                            .map(|hooks| {
+                                hooks.iter().any(|h| {
+                                    let cmd = h.get("command").and_then(|c| c.as_str()).unwrap_or("");
+                                    cmd.contains("mindisland") && cmd != self.hook_command
+                                })
+                            })
+                            .unwrap_or(false);
+                        !is_stale_mindisland
+                    });
+                }
+            }
+        }
+
         let hooks = config
             .as_object_mut()
             .ok_or("Invalid settings.json")?
