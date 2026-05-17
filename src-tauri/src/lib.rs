@@ -117,28 +117,27 @@ pub fn run() {
             );
             let plugin_content = OPENCODE_PLUGIN_CONTENT;
 
-            // Auto-install Claude Code hooks
+            // Auto-install Claude Code hooks (always run — handles stale path updates)
             if agents::claude::ClaudeCodeAdapter::is_installed() {
                 if let Some(ref path) = hook_path {
                     let installer = HookInstaller::new(path.clone());
-                    let status = installer.status();
-                    if !status.installed {
-                        match installer.install() {
-                            Ok(s) => eprintln!("[mindisland] Auto-installed Claude Code hooks for {} events", s.events_registered),
-                            Err(e) => eprintln!("[mindisland] Failed to auto-install Claude Code hooks: {}", e),
+                    match installer.install() {
+                        Ok(s) => {
+                            if s.events_registered > 0 {
+                                eprintln!("[mindisland] Claude Code hooks: {} events registered", s.events_registered);
+                            }
                         }
+                        Err(e) => eprintln!("[mindisland] Failed to install Claude Code hooks: {}", e),
                     }
                 }
             }
 
-            // Auto-install OpenCode plugin
+            // Auto-install OpenCode plugin (always run — handles content updates)
             if agents::opencode::OpenCodeInstaller::is_available() {
                 let oc_installer = agents::opencode::OpenCodeInstaller::new_from_content(plugin_content.to_string());
-                if !oc_installer.is_installed() {
-                    match oc_installer.install() {
-                        Ok(()) => eprintln!("[mindisland] Auto-installed OpenCode plugin"),
-                        Err(e) => eprintln!("[mindisland] Failed to auto-install OpenCode plugin: {}", e),
-                    }
+                match oc_installer.install() {
+                    Ok(()) => {}
+                    Err(e) => eprintln!("[mindisland] Failed to install OpenCode plugin: {}", e),
                 }
             }
 
