@@ -377,50 +377,47 @@ mindisland/
 
 ## 8. 开发路线图
 
-### Phase 1: MVP（目标：可跑起来，��控 UltraWork）
+### Phase 1: Claude Code MVP ✅ DONE
 
-**Week 1-2**:
-- [ ] Tauri 2 项目初始化 (React + Vite + Tailwind)
-- [ ] 系统托盘 + 点击弹出浮动窗口
-- [ ] UltraWork SSE adapter (Rust, reqwest + eventsource)
-- [ ] SessionManager 基本状态管理
-- [ ] 前端：会话列表 + 状态显示
+- [x] Tauri 2 项目初始化 (React 19 + Vite 7 + Tailwind 4)
+- [x] 系统托盘 + 点击弹出浮动窗口 + 失焦自动收起
+- [x] macOS Dock 隐藏 (Accessory activation policy)
+- [x] Claude Code hook adapter (Unix Socket bridge)
+- [x] Hook 脚本注册到 `~/.claude/settings.json`
+- [x] SessionManager 事件驱动状态管理
+- [x] 前端会话列表 + 实时状态 + 工具活动详情
+- [x] 面板刷新：emit + panel-opened + 2s 轮询
 
-**交付物**: 点击托盘图标，能看到 UltraWork 的实时会话状态。
+### Phase 2: Claude Code 打磨 + OpenCode
 
-### Phase 2: 交互功能
+- [ ] Claude Code 会话发现（扫描 `~/.claude/projects/` JSONL transcript）
+- [ ] 权限审批 GUI（PermissionRequest 事件 → 面板审批 → hook stdout 回传）
+- [ ] OpenCode adapter（复用 Claude Code hook 格式）
+- [ ] 系统通知（有权限请求时弹系统通知）
+- [ ] Stop 后状态正确变为 completed（绿色）
+- [ ] 会话过期自动清理（超过 1 小时无活动的 completed 会话）
 
-**Week 3-4**:
-- [ ] 权限审批 UI + UltraWork permission API ��接
-- [ ] 问题回答 UI
-- [ ] 通知（有��限请求时弹通知）
-- [ ] 会话详情展开（最近消息摘要）
+### Phase 3: UltraWork + 多 Agent
 
-### Phase 3: Claude Code 集成
+- [ ] 重新启用 UltraWork SSE adapter
+- [ ] UltraWork 现有会话加载（REST API + 最后消息）
+- [ ] 多 Agent 并行显示 + 按 agent 分组/筛选
+- [ ] Claude Code fork 支持（Qoder/Qwen/Factory/CodeBuddy — 同 hook 格式，不同 `--source`）
 
-**Week 5-6**:
-- [ ] Hook CLI binary 开发
-- [ ] IPC bridge server (Unix Socket / Named Pipe)
-- [ ] Claude Code hook 安装器
-- [ ] ClaudeCodeAdapter 实现
-- [ ] Claude Code 会话发现（JSONL transcript 扫描）
+### Phase 4: Windows + 发布
 
-### Phase 4: Windows 适配 + 打磨
+- [ ] Windows Named Pipe 替代 Unix Socket
+- [ ] Windows 系统托盘 + 弹窗位置
+- [ ] CI/CD 双平台打包 (DMG + MSI)
+- [ ] 自动更新 (Sparkle / tauri-plugin-updater)
+- [ ] Hook 自动安装器（settings.json 管理）
 
-**Week 7-8**:
-- [ ] Windows Named Pipe IPC
-- [ ] Windows 托盘位置计算
-- [ ] Windows 自启动 (Registry)
-- [ ] CI/CD: 双平台打��� (DMG + MSI/NSIS)
-- [ ] 自动更新
+### Phase 5: 高级功能
 
-### Phase 5: 扩展
-
-- [ ] Codex adapter
-- [ ] Gemini CLI adapter
-- [ ] 终端精准跳转
-- [ ] Token 用量统计面板
-- [ ] 插件系统（允许社区添加新 agent）
+- [ ] 终端精准跳转（AppleScript / Accessibility API）
+- [ ] Token 用量追踪面板
+- [ ] 插件系统
+- [ ] Codex / Gemini CLI / Cursor adapter
 
 ---
 
@@ -503,10 +500,33 @@ MindIsland 不是 Open Vibe Island 的 fork，而是独立项目：
 
 ---
 
-## 下一步
+## 13. 已验证的技术结论（Lessons Learned）
 
-确认本方案后，开始 Phase 1 开发：
-1. `cargo create-tauri-app mindisland` 初始化项目
-2. 实现系统托盘 + 浮动窗口
-3. 实现 UltraWork SSE adapter
-4. 前端会话列表 UI
+### Claude Code Hook 集成
+
+- **Payload 格式**: snake_case（`session_id`, `hook_event_name`, `tool_name`, `tool_input`）
+- **Hook 注册**: `~/.claude/settings.json` 的 `hooks` 字段，每个事件可有多个 hook（与 Vibe Island 共存）
+- **Hook 调用时机**: settings.json 在 Claude Code 进程启动时读取，中途修改需要新会话才生效
+- **Subagent hooks**: `agent_id` 不为 null 时是子 agent 的 hook，应跳过（父 session 有 SubagentStart/Stop）
+
+### IPC (Unix Socket)
+
+- **Socket 路径**: `/tmp/mindisland-claude.sock`
+- **启动时序**: MindIsland 启动后 socket bind 需要几百毫秒，hook 脚本需有重试逻辑
+- **协议**: NDJSON（每行一个 JSON 对象）
+- **Hook 脚本**: 必须用 temp file 中转 stdin（避免 shell 转义破坏 JSON），然后 python3 读文件发 socket
+
+### Tauri 2 面板
+
+- **Dock 隐藏**: `app.set_activation_policy(tauri::ActivationPolicy::Accessory)` 比 Info.plist 可靠
+- **透明窗口**: 需要 `macos-private-api` feature + Cargo.toml feature
+- **Tray icon**: 需要 `image-png` feature 才能用 `Image::from_bytes`
+- **emit 到隐藏窗口**: 不可靠，需要面板打开时主动 invoke + 轮询兜底
+- **浮动面板**: 用 WebviewWindowBuilder 动态创建，`decorations(false)` + `always_on_top(true)` + `skip_taskbar(true)`
+
+### UltraWork SSE（已验证，暂未集成）
+
+- **端点**: `GET http://localhost:4096/event`（Basic auth `opencode:test123`）
+- **事件格式**: SSE `data: {"type":"...", "properties":{...}}`
+- **现有会话**: `GET /session` 拉取列表，`GET /session/{id}/message` 拉取最后消息
+- **插件方式也可行**: `~/.config/ultrawork/opencode.json` 添加 `"plugin": ["./plugins/xxx.mjs"]`
