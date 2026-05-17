@@ -36,8 +36,17 @@ function timeAgo(ts: number): string {
   return `${Math.floor(diff / 86400000)}d`;
 }
 
+/** Extract meaningful workspace name, skipping common subdirectory names */
 function workspaceName(dir: string): string {
-  return dir.split("/").filter(Boolean).pop() || dir;
+  const skip = new Set([
+    "src", "src-tauri", "packages", "apps", "lib", "dist", "build",
+    "client", "server", "desktop", "frontend", "backend", "core",
+  ]);
+  const parts = dir.split("/").filter(Boolean);
+  for (let i = parts.length - 1; i >= 0; i--) {
+    if (!skip.has(parts[i])) return parts[i];
+  }
+  return parts[parts.length - 1] || dir;
 }
 
 function formatModel(model?: string): string | null {

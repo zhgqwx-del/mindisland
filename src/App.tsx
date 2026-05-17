@@ -48,29 +48,25 @@ function App() {
   }, [setSessions, refresh]);
 
   // Resize window to fit session count
-  const visibleCount = sessions.filter(
-    (s) =>
-      s.phase === "running" ||
-      s.phase === "waiting-for-approval" ||
-      s.phase === "waiting-for-answer" ||
-      (s.phase === "completed" && Date.now() - s.updatedAt < 120000)
-  ).length;
-
+  // Auto-resize panel to fit actual content
+  const contentRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    const headerHeight = 36;
-    const emptyHeight = 120;
-    const rowHeight = 90;
-    const padding = 16;
-    const height = visibleCount === 0
-      ? headerHeight + emptyHeight
-      : headerHeight + visibleCount * rowHeight + padding;
-    invoke("resize_panel", { height });
-  }, [visibleCount]);
+    const measure = () => {
+      if (!contentRef.current) return;
+      const h = contentRef.current.scrollHeight;
+      if (h > 0) {
+        invoke("resize_panel", { height: h });
+      }
+    };
+    // Measure after render + small delay for layout
+    const raf = requestAnimationFrame(() => setTimeout(measure, 50));
+    return () => cancelAnimationFrame(raf);
+  }, [sessions]);
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-[#0d0d0f]">
+    <div ref={contentRef} className="flex flex-col bg-[#0d0d0f]">
       <Header />
-      <div className="flex-1 overflow-y-auto">
+      <div className="overflow-y-auto max-h-[500px]">
         <SessionList />
       </div>
     </div>

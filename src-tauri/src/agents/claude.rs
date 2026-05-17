@@ -425,13 +425,19 @@ fn translate(p: &Payload) -> Vec<AgentEvent> {
     }
 }
 
+/// Extract meaningful workspace name, skipping common subdirectory names
 fn project_name(cwd: &str) -> String {
+    const SKIP: &[&str] = &[
+        "src", "src-tauri", "packages", "apps", "lib", "dist", "build",
+        "client", "server", "desktop", "frontend", "backend", "core",
+    ];
     let parts: Vec<&str> = cwd.split('/').filter(|s| !s.is_empty()).collect();
-    if parts.len() >= 2 {
-        format!("{}/{}", parts[parts.len() - 2], parts[parts.len() - 1])
-    } else {
-        parts.last().unwrap_or(&"Claude Code").to_string()
+    for part in parts.iter().rev() {
+        if !SKIP.contains(part) {
+            return part.to_string();
+        }
     }
+    parts.last().unwrap_or(&"Claude Code").to_string()
 }
 
 fn clip(s: &str, max: usize) -> String {
