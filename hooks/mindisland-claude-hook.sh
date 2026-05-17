@@ -5,8 +5,9 @@ SOCKET="/tmp/mindisland-claude.sock"
 [ ! -S "$SOCKET" ] && exit 0
 
 TMPFILE=$(mktemp /tmp/mindisland-hook.XXXXXX)
+trap 'rm -f "$TMPFILE"' EXIT
 cat > "$TMPFILE"
-[ ! -s "$TMPFILE" ] && rm -f "$TMPFILE" && exit 0
+[ ! -s "$TMPFILE" ] && exit 0
 
 # Check if this is a PermissionRequest (needs bidirectional communication)
 IS_PERMISSION=$(python3 -c "

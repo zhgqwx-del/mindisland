@@ -1,9 +1,23 @@
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{
     image::Image,
     menu::{MenuBuilder, MenuItemBuilder},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     App, Emitter, Listener, Manager, WebviewUrl, WebviewWindowBuilder,
 };
+
+/// Timestamp (ms) of last programmatic show_panel call.
+/// Used to suppress auto-hide on focus loss for a brief grace period,
+/// because macOS Accessory apps may not receive focus after show().
+static LAST_SHOW_MS: AtomicU64 = AtomicU64::new(0);
+
+fn now_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as u64
+}
 
 const ICON_IDLE: &[u8] = include_bytes!("../icons/tray-idle.png");
 const ICON_ACTIVE: &[u8] = include_bytes!("../icons/tray-active.png");
@@ -69,12 +83,14 @@ pub fn update_tray_state(app: &tauri::AppHandle, state: TrayState) {
 pub fn show_panel(app: &tauri::AppHandle) {
     let window = get_or_create_panel(app);
     if let Some(window) = window {
+        LAST_SHOW_MS.store(now_ms(), Ordering::Relaxed);
         if !window.is_visible().unwrap_or(false) {
             position_panel(&window);
             let _ = window.show();
-            let _ = window.set_focus();
-            let _ = window.emit("panel-opened", ());
         }
+        // Always try to bring to front, even if already visible
+        let _ = window.set_focus();
+        let _ = window.emit("panel-opened", ());
     }
 }
 
@@ -110,11 +126,17 @@ fn get_or_create_panel(app: &tauri::AppHandle) -> Option<tauri::WebviewWindow> {
         .build()
         .ok()?;
 
-    // Auto-hide when focus is lost
+    // Auto-hide when focus is lost, but NOT within 1.5s of a programmatic
+    // show_panel call. macOS Accessory apps often fail to receive focus after
+    // window.show(), which would immediately trigger Focused(false) and hide
+    // the panel before the user can see it.
     let w_clone = w.clone();
     w.on_window_event(move |event| {
         if let tauri::WindowEvent::Focused(false) = event {
-            let _ = w_clone.hide();
+            let last = LAST_SHOW_MS.load(Ordering::Relaxed);
+            if now_ms() - last > 1500 {
+                let _ = w_clone.hide();
+            }
         }
     });
 

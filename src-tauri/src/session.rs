@@ -331,9 +331,11 @@ fn check_process_liveness(
     app_handle: &AppHandle,
     registry: &Arc<SessionRegistry>,
 ) {
-    // Check if any Claude Code process is running
-    let claude_alive = std::process::Command::new("pgrep")
-        .args(["-f", "claude"])
+    // Check if any Claude Code CLI process is running.
+    // Use ps to find the exact "claude" binary; pgrep -f "claude" is too broad
+    // and matches Claude.app, MindIsland paths, hook scripts, etc.
+    let claude_alive = std::process::Command::new("sh")
+        .args(["-c", "ps -eo comm= | grep -qx claude"])
         .output()
         .map(|o| o.status.success())
         .unwrap_or(false);

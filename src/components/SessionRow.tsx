@@ -76,11 +76,12 @@ export function SessionRow({ session }: { session: AgentSession }) {
     <div
       className={`rounded-xl overflow-hidden transition-all duration-300 ${
         isWaiting
-          ? `bg-[${phaseColor[session.phase]}]/[0.06]`
+          ? ""
           : isActive
             ? "bg-white/[0.03]"
             : "bg-white/[0.015]"
       }`}
+      style={isWaiting ? { backgroundColor: `${phaseColor[session.phase]}15` } : undefined}
     >
       <div className="flex">
         {/* Left status bar */}
