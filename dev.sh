@@ -2,8 +2,10 @@
 # MindIsland — macOS development mode
 set -e
 
-# Kill existing instance
+# Kill existing instance and any hanging hook processes
 killall mindisland 2>/dev/null || true
+# Kill PermissionRequest hook processes still waiting on the old socket
+pkill -f "mindisland-claude-hook" 2>/dev/null || true
 rm -f /tmp/mindisland-claude.sock
 sleep 1
 
