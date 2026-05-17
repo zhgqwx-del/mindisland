@@ -51,7 +51,7 @@ Right-click tray icon → Quit MindIsland.
 ## Current Status
 
 - ✅ Claude Code: full integration (15 hook events, permission approval, session discovery, auto-install, panel auto-popup)
-- 🔲 OpenCode: adapter written (`agents/opencode.rs`), not yet enabled (event types need updating)
+- ✅ OpenCode: JS plugin integration (event forwarding, permission/question reply, auto-install)
 - 🔲 UltraWork: adapter written (`agents/ultrawork.rs`), not yet enabled (event types need updating)
 - 🔲 Windows: code structured for cross-platform, not yet tested
 

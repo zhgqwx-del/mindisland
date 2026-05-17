@@ -210,6 +210,7 @@ export default async ({ client, serverUrl, directory }) => {
         const list = pendingParts.get(p.part.messageID) || [];
         list.push(p.part);
         pendingParts.set(p.part.messageID, list.slice(-20));
+        if (pendingParts.size > 200) pendingParts.delete(pendingParts.keys().next().value);
         return null;
       }
       const s = getSessionText(meta.sessionID);
@@ -239,6 +240,7 @@ export default async ({ client, serverUrl, directory }) => {
           const list = pendingParts.get(p.part.messageID) || [];
           list.push(p.part);
           pendingParts.set(p.part.messageID, list.slice(-20));
+          if (pendingParts.size > 200) pendingParts.delete(pendingParts.keys().next().value);
         }
         return null;
       }
