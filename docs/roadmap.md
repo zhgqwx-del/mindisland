@@ -20,19 +20,24 @@
 - [x] Process liveness monitor
 - [x] UI aligned with Open Vibe Island design language
 
-## Phase 2: OpenCode Integration
+## Phase 2: OpenCode Integration ✅
 
-- [ ] OpenCode JS plugin (`hooks/mindisland-opencode-plugin.js`)
-- [ ] Modify socket adapter to detect OpenCode events (`_source` / session_id prefix)
-- [ ] OpenCode plugin auto-installer (copy to `~/.config/opencode/plugins/`)
-- [ ] Permission reply: plugin POSTs to `/permission/{id}/reply`
-- [ ] Question reply: plugin POSTs to `/question/{id}/reply`
-- [ ] Rewrite `opencode.rs` as plugin installer (not SSE adapter)
-- [ ] Test with live OpenCode session
+- [x] OpenCode JS plugin (`hooks/mindisland-opencode-plugin.js`)
+- [x] Socket adapter multi-source detection (`_source` / session_id prefix)
+- [x] OpenCode plugin auto-installer (copy to `~/.config/opencode/plugins/`)
+- [x] Permission reply: plugin POSTs to `/permission/{id}/reply`
+- [x] Question reply: plugin POSTs to `/question/{id}/reply`
+- [x] Rewrite `opencode.rs` as plugin installer (not SSE adapter)
+- [x] Test with live OpenCode session (permission dock verified)
+- [x] Assistant last response display in session row
+- [x] Mutex discipline: release before side effects (emit/save/tray)
+- [x] Phase protection: WaitingForApproval not overwritten by Running
+- [x] Subagent detection: use agent_type instead of agent_id
+- [ ] Question dock: proper WaitingForAnswer UI (currently uses PermissionRequest path)
 
 ## Phase 3: UltraWork + Multi-Agent
 
-- [ ] Re-enable UltraWork SSE adapter
+- [ ] UltraWork JS plugin (same pattern as OpenCode)
 - [ ] Multi-agent display (grouped by agent type)
 - [ ] Agent filtering/search
 - [ ] Token usage tracking dashboard
