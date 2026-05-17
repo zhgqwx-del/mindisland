@@ -92,6 +92,17 @@ impl SessionManager {
     pub async fn start_monitoring(&self) -> Result<(), String> {
         let (tx, mut rx) = mpsc::channel::<AgentEvent>(256);
 
+        // --- Clean up stale sessions (completed > 2 hours ago) ---
+        {
+            let mut sessions = self.sessions.lock().unwrap();
+            let now = now_millis();
+            let two_hours = 2 * 3600 * 1000;
+            sessions.retain(|_, s| {
+                s.phase != SessionPhase::Completed || (now - s.updated_at) < two_hours
+            });
+            self.registry.save(&sessions.values().cloned().collect::<Vec<_>>());
+        }
+
         // --- Discover existing sessions from transcripts ---
         let tx_disc = tx.clone();
         tokio::spawn(async move {

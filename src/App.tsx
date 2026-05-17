@@ -58,10 +58,11 @@ function App() {
 
 function Header() {
   const sessions = useSessionStore((s) => s.sessions);
-  const running = sessions.filter((s) => s.phase === "running").length;
+  const active = sessions.filter(
+    (s) => s.phase === "running" || s.phase === "waiting-for-approval" || s.phase === "waiting-for-answer"
+  );
   const attention = sessions.filter(
-    (s) =>
-      s.phase === "waiting-for-approval" || s.phase === "waiting-for-answer"
+    (s) => s.phase === "waiting-for-approval" || s.phase === "waiting-for-answer"
   ).length;
 
   return (
@@ -73,16 +74,20 @@ function Header() {
         <span className="text-base">🏝️</span>
         <h1 className="text-sm font-semibold text-zinc-200">MindIsland</h1>
       </div>
-      <div className="flex items-center gap-3 text-xs text-zinc-500">
+      <div className="flex items-center gap-2 text-xs">
         {attention > 0 && (
-          <span className="text-red-400 font-medium animate-pulse">
-            {attention} waiting
+          <span className="bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full font-medium animate-pulse">
+            {attention} needs action
           </span>
         )}
-        {running > 0 && (
-          <span className="text-yellow-400">{running} running</span>
+        {active.length > 0 && attention === 0 && (
+          <span className="bg-yellow-500/15 text-yellow-400 px-2 py-0.5 rounded-full">
+            {active.length} active
+          </span>
         )}
-        <span>{sessions.length} sessions</span>
+        {active.length === 0 && (
+          <span className="text-zinc-600">idle</span>
+        )}
       </div>
     </div>
   );
