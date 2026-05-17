@@ -84,28 +84,28 @@ impl SessionManager {
         );
 
         if resolved {
-            let mut sessions = self.sessions.lock().unwrap();
-            if let Some(session) = sessions.get_mut(session_id) {
-                session.pending_permission = None;
-                session.phase = if approved {
-                    SessionPhase::Running
-                } else {
-                    SessionPhase::Completed
-                };
-                session.summary = if approved {
-                    "Permission approved".to_string()
-                } else {
-                    "Permission denied".to_string()
-                };
-                session.updated_at = now_millis();
-            }
-            let list: Vec<AgentSession> = sessions.values().cloned().collect();
+            let list = {
+                let mut sessions = self.sessions.lock().unwrap();
+                if let Some(session) = sessions.get_mut(session_id) {
+                    session.pending_permission = None;
+                    session.phase = if approved {
+                        SessionPhase::Running
+                    } else {
+                        SessionPhase::Completed
+                    };
+                    session.summary = if approved {
+                        "Permission approved".to_string()
+                    } else {
+                        "Permission denied".to_string()
+                    };
+                    session.updated_at = now_millis();
+                }
+                sessions.values().cloned().collect::<Vec<_>>()
+            }; // mutex released here
+
             let _ = self.app_handle.emit("sessions-updated", &list);
             self.registry.save(&list);
-
-            // Clear attention state so sound doesn't replay
             *self.last_attention_session.lock().unwrap() = None;
-            // Update tray to reflect resolved state
             self.update_tray(&list);
         }
     }
@@ -380,36 +380,43 @@ fn check_process_liveness(
     let claude_alive = processes_output.lines().any(|l| l.trim() == "claude");
     let opencode_alive = processes_output.lines().any(|l| l.trim() == "opencode");
 
-    let mut sessions = sessions.lock().unwrap();
-    let now = now_millis();
-    let mut changed = false;
+    let list = {
+        let mut sessions = sessions.lock().unwrap();
+        let now = now_millis();
+        let mut changed = false;
 
-    for session in sessions.values_mut() {
-        let is_active = session.phase == SessionPhase::Running
-            || session.phase == SessionPhase::WaitingForApproval
-            || session.phase == SessionPhase::WaitingForAnswer;
-        if !is_active {
-            continue;
+        for session in sessions.values_mut() {
+            let is_active = session.phase == SessionPhase::Running
+                || session.phase == SessionPhase::WaitingForApproval
+                || session.phase == SessionPhase::WaitingForAnswer;
+            if !is_active {
+                continue;
+            }
+
+            let process_dead = match session.agent_id.as_str() {
+                "claude-code" => !claude_alive,
+                "opencode" => !opencode_alive,
+                _ => false,
+            };
+
+            if process_dead {
+                session.phase = SessionPhase::Completed;
+                session.summary = "Process exited".to_string();
+                session.current_tool = None;
+                session.pending_permission = None;
+                session.updated_at = now;
+                changed = true;
+            }
         }
 
-        let process_dead = match session.agent_id.as_str() {
-            "claude-code" => !claude_alive,
-            "opencode" => !opencode_alive,
-            _ => false,
-        };
-
-        if process_dead {
-            session.phase = SessionPhase::Completed;
-            session.summary = "Process exited".to_string();
-            session.current_tool = None;
-            session.pending_permission = None;
-            session.updated_at = now;
-            changed = true;
+        if changed {
+            Some(sessions.values().cloned().collect::<Vec<_>>())
+        } else {
+            None
         }
-    }
+    }; // mutex released here
 
-    if changed {
-        let list: Vec<AgentSession> = sessions.values().cloned().collect();
+    if let Some(list) = list {
         let _ = app_handle.emit("sessions-updated", &list);
         registry.save(&list);
         eprintln!("[mindisland] Agent process not found, marked sessions as completed");
