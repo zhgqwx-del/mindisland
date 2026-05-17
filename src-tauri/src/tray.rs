@@ -1,5 +1,6 @@
 use tauri::{
     image::Image,
+    menu::{MenuBuilder, MenuItemBuilder},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     App, Emitter, Listener, Manager, WebviewUrl, WebviewWindowBuilder,
 };
@@ -21,10 +22,16 @@ pub enum TrayState {
 pub fn setup_tray(app: &App) -> Result<(), Box<dyn std::error::Error>> {
     let icon = Image::from_bytes(ICON_IDLE)?;
 
+    // Right-click context menu
+    let quit = MenuItemBuilder::with_id("quit", "Quit MindIsland").build(app)?;
+    let menu = MenuBuilder::new(app).item(&quit).build()?;
+
     let _tray = TrayIconBuilder::with_id("main-tray")
         .icon(icon)
         .icon_as_template(false)
         .tooltip("MindIsland — idle")
+        .menu(&menu)
+        .menu_on_left_click(false)
         .on_tray_icon_event(|tray, event| {
             if let TrayIconEvent::Click {
                 button: MouseButton::Left,
@@ -33,6 +40,11 @@ pub fn setup_tray(app: &App) -> Result<(), Box<dyn std::error::Error>> {
             } = event
             {
                 toggle_panel(tray.app_handle());
+            }
+        })
+        .on_menu_event(|app, event| {
+            if event.id().as_ref() == "quit" {
+                app.exit(0);
             }
         })
         .build(app)?;
