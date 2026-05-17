@@ -147,11 +147,14 @@ impl ClaudeCodeAdapter {
                         }
                     };
 
-                    // Skip subagent hooks
+                    // Skip subagent hooks (but never skip PermissionRequest —
+                    // it must be processed even if agent_id is set, because
+                    // newer Claude Code versions include agent_id on all events)
                     if payload.agent_id.is_some()
                         && !matches!(
                             payload.hook_event_name.as_deref(),
                             Some("SubagentStart") | Some("SubagentStop")
+                                | Some("PermissionRequest")
                         )
                     {
                         continue;
