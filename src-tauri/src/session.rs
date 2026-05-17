@@ -5,6 +5,7 @@ use tauri::{AppHandle, Emitter};
 use tokio::sync::mpsc;
 
 use crate::agents::claude::ClaudeCodeAdapter;
+use crate::agents::claude_discovery::ClaudeTranscriptDiscovery;
 use crate::event::{AgentEvent, AgentSession, SessionPhase};
 
 struct AgentMeta {
@@ -43,6 +44,15 @@ impl SessionManager {
 
     pub async fn start_monitoring(&self) -> Result<(), String> {
         let (tx, mut rx) = mpsc::channel::<AgentEvent>(256);
+
+        // --- Discover existing Claude Code sessions from transcripts ---
+        let tx_disc = tx.clone();
+        tokio::spawn(async move {
+            let discovery = ClaudeTranscriptDiscovery::new();
+            for event in discovery.discover() {
+                let _ = tx_disc.send(event).await;
+            }
+        });
 
         // --- Claude Code (Unix Socket hook bridge) ---
         let claude = Arc::new(ClaudeCodeAdapter::new());
