@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { AgentSession } from "../stores/sessions";
+import { useSessionStore } from "../stores/sessions";
 
 const phaseColor: Record<string, string> = {
   running: "#6ea7ff",
@@ -60,7 +61,23 @@ function formatModel(model?: string): string | null {
 }
 
 export function SessionRow({ session }: { session: AgentSession }) {
+  const setSessions = useSessionStore((s) => s.setSessions);
+  const sessions = useSessionStore((s) => s.sessions);
+
   const handlePermission = (approved: boolean) => {
+    // Optimistic UI update — reflect state change immediately
+    setSessions(
+      sessions.map((s) =>
+        s.id === session.id
+          ? {
+              ...s,
+              phase: approved ? "running" as const : "completed" as const,
+              pendingPermission: undefined,
+              summary: approved ? "Permission approved" : "Permission denied",
+            }
+          : s
+      )
+    );
     invoke("resolve_permission", { sessionId: session.id, approved });
   };
 
